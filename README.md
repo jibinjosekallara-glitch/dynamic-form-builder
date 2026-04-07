@@ -87,8 +87,8 @@ http://127.0.0.1:8000/login
 
 ## Admin Credentials
 
-- **Email:** admin@example.com  
-- **Password:** password  
+- **Email:** admin@test.com  
+- **Password:** password123  
 
 *(Update as per your database if changed)*
 
