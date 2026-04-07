@@ -116,7 +116,11 @@ Sample Response:
 ]
 ```
 
----
+## Database Setup
+
+1. Import the SQL file located at `/database/dynamic_form.sql` into your MySQL database.
+2. Update your `.env` file with database credentials.
+3. Run `php artisan migrate` if you need to migrate additional tables.
 
 ## Database Tables
 
