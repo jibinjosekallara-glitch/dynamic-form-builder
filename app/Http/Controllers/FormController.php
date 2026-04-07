@@ -33,11 +33,11 @@ class FormController extends Controller
         $form = Form::create($request->only('title','status'));
 
         // Add default fields (Name, Email, Phone)
-        FormField::insert([
-            ['form_id'=>$form->id, 'label'=>'Name', 'type'=>'text','required'=>1,'validation'=>'required','order'=>1,'created_at'=>now(),'updated_at'=>now()],
-            ['form_id'=>$form->id, 'label'=>'Email', 'type'=>'email','required'=>1,'validation'=>'required|email','order'=>2,'created_at'=>now(),'updated_at'=>now()],
-            ['form_id'=>$form->id, 'label'=>'Phone', 'type'=>'text','required'=>1,'validation'=>'required|numeric','order'=>3,'created_at'=>now(),'updated_at'=>now()],
-        ]);
+        // FormField::insert([
+        //     ['form_id'=>$form->id, 'label'=>'Name', 'type'=>'text','required'=>1,'validation'=>'required','order'=>1,'created_at'=>now(),'updated_at'=>now()],
+        //     ['form_id'=>$form->id, 'label'=>'Email', 'type'=>'email','required'=>1,'validation'=>'required|email','order'=>2,'created_at'=>now(),'updated_at'=>now()],
+        //     ['form_id'=>$form->id, 'label'=>'Phone', 'type'=>'text','required'=>1,'validation'=>'required|numeric','order'=>3,'created_at'=>now(),'updated_at'=>now()],
+        // ]);
 
         return redirect()->route('forms.index')->with('success','Form created successfully.');
     }
