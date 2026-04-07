@@ -9,67 +9,81 @@ use App\Models\Submission;
 
 class FormController extends Controller
 {
-    // ==========================
-    // Admin: Forms CRUD
-    // ==========================
+    /**
+     * Constructor to apply middleware
+     */
+    public function __construct()
+    {
+        // Only admin routes need auth
+       // $this->middleware('auth')->except(['list', 'show', 'submit']);
+    }
+
+    /* =======================
+       ADMIN: Forms CRUD
+       ======================= */
+
+    // List all forms (admin)
     public function index()
     {
-        $forms = Form::paginate(10); // list all forms
+        $forms = Form::latest()->paginate(10);
         return view('admin.forms.index', compact('forms'));
     }
 
+    // Show create form page
     public function create()
     {
         return view('admin.forms.create');
     }
 
+    // Store form
     public function store(Request $request)
     {
         $request->validate([
             'title' => 'required|string|max:255',
-            'status' => 'required|boolean'
         ]);
 
-        $form = Form::create($request->only('title','status'));
+        $form = Form::create([
+            'title' => $request->title,
+            'status' => 1,
+        ]);
 
-        // Add default fields (Name, Email, Phone)
-        // FormField::insert([
-        //     ['form_id'=>$form->id, 'label'=>'Name', 'type'=>'text','required'=>1,'validation'=>'required','order'=>1,'created_at'=>now(),'updated_at'=>now()],
-        //     ['form_id'=>$form->id, 'label'=>'Email', 'type'=>'email','required'=>1,'validation'=>'required|email','order'=>2,'created_at'=>now(),'updated_at'=>now()],
-        //     ['form_id'=>$form->id, 'label'=>'Phone', 'type'=>'text','required'=>1,'validation'=>'required|numeric','order'=>3,'created_at'=>now(),'updated_at'=>now()],
-        // ]);
-
-        return redirect()->route('forms.index')->with('success','Form created successfully.');
+        return redirect()->route('forms.index')->with('success', 'Form created successfully!');
     }
 
+    // Show edit form page
     public function edit(Form $form)
     {
         return view('admin.forms.edit', compact('form'));
     }
 
+    // Update form
     public function update(Request $request, Form $form)
     {
         $request->validate([
             'title' => 'required|string|max:255',
-            'status' => 'required|boolean'
         ]);
 
-        $form->update($request->only('title','status'));
-        return redirect()->route('forms.index')->with('success','Form updated successfully.');
+        $form->update([
+            'title' => $request->title,
+        ]);
+
+        return redirect()->route('forms.index')->with('success', 'Form updated successfully!');
     }
 
+    // Delete form
     public function destroy(Form $form)
     {
         $form->delete();
-        return redirect()->route('forms.index')->with('success','Form deleted successfully.');
+        return redirect()->back()->with('success', 'Form deleted successfully!');
     }
 
-    // ==========================
-    // Admin: Dynamic Fields
-    // ==========================
+    /* =======================
+       ADMIN: Form Fields
+       ======================= */
+
     public function fields(Form $form)
     {
-        $fields = $form->fields()->orderBy('order')->get();
+        $fields = $form->fields;
         return view('admin.forms.fields', compact('form', 'fields'));
     }
 
@@ -77,113 +91,86 @@ class FormController extends Controller
     {
         $request->validate([
             'label' => 'required|string|max:255',
-            'type' => 'required|in:text,textarea,number,email,date,dropdown,checkbox',
-            'required' => 'required|boolean',
-            'validation' => 'nullable|string',
-            'options' => 'nullable|string',
-            'order' => 'nullable|integer',
+            'type' => 'required|string',
         ]);
 
-        $form->fields()->create([
+        $options = $request->options ? json_encode(explode(',', $request->options)) : null;
+
+        FormField::create([
+            'form_id' => $form->id,
             'label' => $request->label,
+            'name' => $request->name ?? null,
             'type' => $request->type,
-            'required' => $request->required,
-            'validation' => $request->validation,
-            'options' => $request->options 
-                ? json_encode(array_map('trim', explode(',', $request->options))) 
-                : null, // convert comma-separated string to JSON array
-            'order' => $request->order ?? 0,
+            'required' => $request->required ?? 0,
+            'validation' => $request->validation ?? null,
+            'options' => $options,
         ]);
 
         return redirect()->back()->with('success', 'Field added successfully!');
     }
 
-    // ==========================
-    // Public: Dynamic Form Submission
-    // ==========================
-    // Show form to users
-    public function show($id)
+    /* =======================
+       FRONTEND: Public Forms
+       ======================= */
+
+    // List forms (frontend)
+    public function list()
     {
-        $form = Form::with('fields')->findOrFail($id);
+        $forms = Form::where('status', 1)->get();
+        return view('forms.list', compact('forms'));
+    }
 
-        // Decode options safely
-        foreach ($form->fields as $field) {
-            if ($field->options && is_string($field->options)) {
-                $field->options = json_decode($field->options, true);
-            }
-        }
+    // Show single form (frontend)
+    public function show(Form $form)
+    {
+        $form->load('fields');
 
-        // Get submissions
-        $submissions = Submission::where('form_id', $id)
-        ->latest()
-        ->paginate(5);
+        // Get last 5 submissions for this form
+        $submissions = Submission::where('form_id', $form->id)
+                        ->latest()
+                        ->paginate(5);
 
         return view('forms.show', compact('form', 'submissions'));
     }
 
-    // ==========================
-    // Submit Form
-    // ==========================
-    public function submit(Request $request, $id)
+    // Submit form (frontend)
+    public function submit(Request $request, Form $form)
+    {
+        $form->load('fields');
+
+        $rules = [];
+        $messages = [];
+
+        foreach ($form->fields as $field) {
+            $fieldName = $field->name ?? 'field_'.$field->id;
+
+            if ($field->required) {
+                $rules[$fieldName] = $field->validation ?? 'required';
+                $messages[$fieldName.'.required'] = "{$field->label} is required";
+            }
+        }
+
+        $validated = $request->validate($rules, $messages);
+
+        Submission::create([
+            'form_id' => $form->id,
+            'user_name' => $request->input('Name') ?? null,
+            'user_email' => $request->input('Email') ?? null,
+            'data' => json_encode($validated),
+        ]);
+
+        return redirect()->back()->with('success', 'Form submitted successfully!');
+    }
+    public function showPublic($id)
 {
     $form = Form::with('fields')->findOrFail($id);
-
-    $rules = [];
-    $messages = [];
-
-    foreach ($form->fields as $field) {
-
-        $fieldName = $field->name ?? 'field_'.$field->id;
-
-        $fieldRules = [];
-
-        // Required
-        if ($field->required) {
-            $fieldRules[] = 'required';
-        }
-
-        // Type-based validation
-        if ($field->type == 'email') {
-            $fieldRules[] = 'email';
-        }
-
-        if ($field->type == 'number') {
-            $fieldRules[] = 'numeric';
-        }
-
-        // Extra validation from DB (ex: min:3|max:50)
-        if (!empty($field->validation)) {
-            $extraRules = explode('|', $field->validation);
-            $fieldRules = array_merge($fieldRules, $extraRules);
-        }
-
-        // Checkbox fix
-        if ($field->type == 'checkbox') {
-            $fieldRules[] = 'array';
-        }
-
-        $rules[$fieldName] = $fieldRules;
-
-        // Custom message (optional)
-        $messages[$fieldName.'.required'] = $field->label . ' is required';
-      
-    }
-
-    $validated = $request->validate($rules, $messages);
-
-    // Save submission
-    Submission::create([
-        'form_id' => $form->id,
-        'data' => json_encode($validated),
-    ]);
-
-    return back()->with('success', 'Form submitted successfully!');
+    $submissions = Submission::where('form_id', $id)->latest()->paginate(5);
+    return view('forms.show', compact('form', 'submissions'));
 }
-    public function list()
-    {
-        // Only active forms
-        $forms = Form::where('status', 1)->latest()->get();
 
-        return view('forms.list', compact('forms'));
-    }
+public function submitPublic(Request $request, $id)
+{
+    $form = Form::with('fields')->findOrFail($id);
+    // validation + store logic
+}
 }

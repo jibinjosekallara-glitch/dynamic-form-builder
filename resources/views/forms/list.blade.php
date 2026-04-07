@@ -51,7 +51,7 @@
         <div class="form-card">
             <h3>{{ $form->title }}</h3>
 
-            <a href="{{ route('forms.show', $form->id) }}" class="btn">
+            <a href="{{ route('forms.show.public', $form->id) }}" class="btn">
                 Fill Form
             </a>
         </div>

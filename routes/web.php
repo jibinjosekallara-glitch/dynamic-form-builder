@@ -65,6 +65,7 @@ Route::middleware(['auth', AdminMiddleware::class])
 | and submit dynamic form data.
 |
 */
+
 Route::get('/forms', [FormController::class, 'list'])->name('forms.list');
-Route::get('/forms/{form}', [FormController::class, 'show'])->name('forms.show');
+Route::get('/forms/{form}', [FormController::class, 'showPublic'])->name('forms.show.public');
 Route::post('/forms/{form}', [FormController::class, 'submit'])->name('forms.submit');
